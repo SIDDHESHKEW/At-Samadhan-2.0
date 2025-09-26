@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NeuroBoost - Gamified Productivity{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- D3.js for tree visualization -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                        'spin-slow': 'spin 3s linear infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        glow: {
+                            '0%': { boxShadow: '0 0 5px rgba(16, 185, 129, 0.7)' },
+                            '100%': { boxShadow: '0 0 20px rgba(16, 185, 129, 0.9)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Base Styles -->
+    <style>
+        body {
+            background-color: #0f172a; /* Slate-900 */
+            color: #f1f5f9; /* Slate-100 */
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        /* Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1e293b; /* Slate-800 */
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #475569; /* Slate-600 */
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* Slate-500 */
+        }
+        
+        /* Transitions */
+        .transition-all {
+            transition-property: all;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 300ms;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- Navigation Bar -->
+    <nav class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="{% url 'home' %}" class="text-2xl font-bold text-white flex items-center">
+                            <span class="text-violet-400 mr-1">Neuro</span>Boost
+                        </a>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="{% url 'home' %}" class="border-violet-500 text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Dashboard
+                        </a>
+                        <a href="#" class="border-transparent text-slate-300 hover:border-slate-400 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Progress Tree
+                        </a>
+                        <a href="#" class="border-transparent text-slate-300 hover:border-slate-400 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Connections
+                        </a>
+                        <a href="#" class="border-transparent text-slate-300 hover:border-slate-400 hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Question Center
+                        </a>
+                    </div>
+                </div>
+                <div class="hidden sm:ml-6 sm:flex sm:items-center">
+                    <!-- Profile dropdown placeholder -->
+                    <div class="ml-3 relative">
+                        <div>
+                            <button type="button" class="bg-slate-700 flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-white" id="user-menu-button">
+                                <span class="sr-only">Open user menu</span>
+                                <div class="h-8 w-8 rounded-full bg-violet-500 flex items-center justify-center text-white font-semibold">
+                                    {{ user.username.0|default:"G"|upper }}
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Mobile menu button -->
+                <div class="-mr-2 flex items-center sm:hidden">
+                    <button type="button" class="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white" id="mobile-menu-button">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu, show/hide based on menu state -->
+        <div class="sm:hidden hidden" id="mobile-menu">
+            <div class="pt-2 pb-3 space-y-1">
+                <a href="{% url 'home' %}" class="bg-slate-900 text-white block pl-3 pr-4 py-2 border-l-4 border-violet-500 text-base font-medium">Dashboard</a>
+                <a href="#" class="border-transparent text-slate-300 hover:bg-slate-700 hover:border-slate-400 hover:text-white block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Progress Tree</a>
+                <a href="#" class="border-transparent text-slate-300 hover:bg-slate-700 hover:border-slate-400 hover:text-white block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Connections</a>
+                <a href="#" class="border-transparent text-slate-300 hover:bg-slate-700 hover:border-slate-400 hover:text-white block pl-3 pr-4 py-2 border-l-4 text-base font-medium">Question Center</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Universal Widgets -->
+    <!-- Timer Widget -->
+    <div id="timer-widget" class="fixed bottom-24 right-4 bg-slate-800 rounded-lg shadow-lg p-4 border border-slate-700 w-64 transform transition-transform hover:scale-105">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-semibold text-white">Focus Timer</h3>
+            <button id="timer-minimize" class="text-slate-400 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+        <div id="timer-content">
+            <div class="text-4xl font-bold text-center text-white mb-3" id="timer-display">25:00</div>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <button id="timer-start" class="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-md transition-colors">
+                    Start
+                </button>
+                <button id="timer-reset" class="bg-slate-600 hover:bg-slate-700 text-white py-2 px-4 rounded-md transition-colors">
+                    Reset
+                </button>
+            </div>
+            <div class="flex justify-between text-sm text-slate-300">
+                <button id="timer-25" class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded">25m</button>
+                <button id="timer-15" class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded">15m</button>
+                <button id="timer-5" class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded">5m</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot Widget -->
+    <div id="chatbot-widget" class="fixed bottom-4 right-4 z-10">
+        <button id="chatbot-toggle" class="bg-violet-600 hover:bg-violet-700 text-white rounded-full p-3 shadow-lg transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+        </button>
+        <div id="chatbot-container" class="hidden absolute bottom-16 right-0 w-80 bg-slate-800 rounded-lg shadow-xl border border-slate-700 overflow-hidden">
+            <div class="bg-slate-900 p-4 border-b border-slate-700">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-white">NeuroBot Assistant</h3>
+                    <button id="chatbot-close" class="text-slate-400 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="chatbot-messages" class="h-80 overflow-y-auto p-4 space-y-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 bg-violet-500 h-8 w-8 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold">N</span>
+                    </div>
+                    <div class="ml-3 bg-slate-700 rounded-lg py-2 px-3 max-w-[80%]">
+                        <p class="text-sm text-white">Hi there! I'm NeuroBot. How can I help you with your studies today?</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-700">
+                <form id="chatbot-form" class="flex">
+                    <input type="text" id="chatbot-input" class="flex-grow bg-slate-700 border border-slate-600 rounded-l-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Ask me anything...">
+                    <button type="submit" class="bg-violet-600 hover:bg-violet-700 text-white rounded-r-lg px-4 py-2 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distraction Shield Widget (Hidden by default) -->
+    <div id="distraction-shield" class="fixed inset-0 bg-slate-900 bg-opacity-90 z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-800 rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div class="text-center">
+                <div class="inline-block p-3 bg-amber-100 rounded-full mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Focus Mode Active</h2>
+                <p class="text-slate-300 mb-6">You're trying to access a distracting site during your focus session.</p>
+                
+                <div class="bg-slate-700 rounded-lg p-4 mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-slate-300">Current Streak</span>
+                        <span class="text-white font-bold" id="shield-streak">5 days</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-300">Focus Time Today</span>
+                        <span class="text-white font-bold" id="shield-focus-time">1h 45m</span>
+                    </div>
+                </div>
+                
+                <p class="text-amber-400 font-medium mb-6" id="shield-motivation">"Stay focused! You're just 15 minutes away from completing your goal."</p>
+                
+                <div class="flex space-x-4">
+                    <button id="shield-continue" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 px-4 rounded-lg transition-colors">
+                        Continue Anyway
+                    </button>
+                    <button id="shield-return" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white py-2 px-4 rounded-lg transition-colors">
+                        Return to Focus
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 border-t border-slate-700 py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p class="text-center text-slate-400 text-sm">
+                &copy; 2025 NeuroBoost. All rights reserved.
+            </p>
+        </div>
+    </footer>
+
+    <!-- Base JavaScript -->
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-button').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Chatbot toggle
+        document.getElementById('chatbot-toggle').addEventListener('click', function() {
+            const chatbotContainer = document.getElementById('chatbot-container');
+            chatbotContainer.classList.toggle('hidden');
+        });
+
+        document.getElementById('chatbot-close').addEventListener('click', function() {
+            document.getElementById('chatbot-container').classList.add('hidden');
+        });
+
+        // Timer widget functionality
+        let timerInterval;
+        let timerMinutes = 25;
+        let timerSeconds = 0;
+        let timerRunning = false;
+
+        // Load timer state from localStorage if available
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTimerState = localStorage.getItem('timerState');
+            if (savedTimerState) {
+                const timerState = JSON.parse(savedTimerState);
+                timerMinutes = timerState.minutes;
+                timerSeconds = timerState.seconds;
+                updateTimerDisplay();
+                
+                if (timerState.running) {
+                    startTimer();
+                }
+            }
+        });
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timer-display');
+            display.textContent = `${timerMinutes.toString().padStart(2, '0')}:${timerSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function saveTimerState() {
+            const timerState = {
+                minutes: timerMinutes,
+                seconds: timerSeconds,
+                running: timerRunning
+            };
+            localStorage.setItem('timerState', JSON.stringify(timerState));
+        }
+
+        function startTimer() {
+            if (timerRunning) return;
+            
+            timerRunning = true;
+            document.getElementById('timer-start').textContent = 'Pause';
+            
+            timerInterval = setInterval(function() {
+                if (timerSeconds === 0) {
+                    if (timerMinutes === 0) {
+                        clearInterval(timerInterval);
+                        timerRunning = false;
+                        document.getElementById('timer-start').textContent = 'Start';
+                        
+                        // Log session to backend
+                        logFocusSession();
+                        
+                        return;
+                    }
+                    timerMinutes--;
+                    timerSeconds = 59;
+                } else {
+                    timerSeconds--;
+                }
+                
+                updateTimerDisplay();
+                saveTimerState();
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            timerRunning = false;
+            document.getElementById('timer-start').textContent = 'Start';
+            saveTimerState();
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timerRunning = false;
+            timerMinutes = 25;
+            timerSeconds = 0;
+            updateTimerDisplay();
+            document.getElementById('timer-start').textContent = 'Start';
+            saveTimerState();
+        }
+
+        function setTimer(minutes) {
+            clearInterval(timerInterval);
+            timerRunning = false;
+            timerMinutes = minutes;
+            timerSeconds = 0;
+            updateTimerDisplay();
+            document.getElementById('timer-start').textContent = 'Start';
+            saveTimerState();
+        }
+
+        function logFocusSession() {
+            // This will be implemented to call the backend API
+            console.log('Focus session completed');
+            // In a real implementation, we would make an AJAX call to the backend
+        }
+
+        document.getElementById('timer-start').addEventListener('click', function() {
+            if (timerRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        });
+
+        document.getElementById('timer-reset').addEventListener('click', resetTimer);
+        document.getElementById('timer-25').addEventListener('click', function() { setTimer(25); });
+        document.getElementById('timer-15').addEventListener('click', function() { setTimer(15); });
+        document.getElementById('timer-5').addEventListener('click', function() { setTimer(5); });
+
+        document.getElementById('timer-minimize').addEventListener('click', function() {
+            const timerContent = document.getElementById('timer-content');
+            timerContent.classList.toggle('hidden');
+            
+            const minimizeButton = document.getElementById('timer-minimize');
+            if (timerContent.classList.contains('hidden')) {
+                minimizeButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>`;
+            } else {
+                minimizeButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                </svg>`;
+            }
+        });
+
+        // Chatbot form submission
+        document.getElementById('chatbot-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatbot-input');
+            const message = input.value.trim();
+            
+            if (message) {
+                // Add user message to chat
+                addChatMessage(message, 'user');
+                input.value = '';
+                
+                // Simulate bot response (will be replaced with actual API call)
+                setTimeout(function() {
+                    // This will be replaced with actual API call to backend
+                    const botResponse = "I'm still learning to help with that. Our team is working on making me smarter!";
+                    addChatMessage(botResponse, 'bot');
+                }, 1000);
+            }
+        });
+
+        function addChatMessage(message, sender) {
+            const chatMessages = document.getElementById('chatbot-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex items-start';
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="ml-auto bg-violet-600 rounded-lg py-2 px-3 max-w-[80%]">
+                        <p class="text-sm text-white">${message}</p>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="flex-shrink-0 bg-violet-500 h-8 w-8 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold">N</span>
+                    </div>
+                    <div class="ml-3 bg-slate-700 rounded-lg py-2 px-3 max-w-[80%]">
+                        <p class="text-sm text-white">${message}</p>
+                    </div>
+                `;
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Distraction Shield
+        document.getElementById('shield-continue').addEventListener('click', function() {
+            document.getElementById('distraction-shield').classList.add('hidden');
+        });
+
+        document.getElementById('shield-return').addEventListener('click', function() {
+            document.getElementById('distraction-shield').classList.add('hidden');
+        });
+
+        // This function would be called when a user tries to visit a blocked site
+        function showDistractionShield() {
+            document.getElementById('distraction-shield').classList.remove('hidden');
+            
+            // In a real implementation, we would fetch data from the backend
+            // For now, we'll use placeholder data
+            document.getElementById('shield-streak').textContent = '5 days';
+            document.getElementById('shield-focus-time').textContent = '1h 45m';
+            document.getElementById('shield-motivation').textContent = '"Stay focused! You\'re just 15 minutes away from completing your goal."';
+        }
+
+        // For demo purposes, we'll add a function to simulate visiting a blocked site
+        window.simulateBlockedSite = function() {
+            showDistractionShield();
+        };
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
