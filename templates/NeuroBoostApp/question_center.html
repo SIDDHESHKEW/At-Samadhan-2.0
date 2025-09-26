@@ -1,0 +1,167 @@
+{% extends 'NeuroBoostApp/base.html' %}
+
+{% block title %}Question Center - NeuroBoost{% endblock %}
+
+{% block content %}
+<div class="bg-slate-800 rounded-xl shadow-lg p-6 mb-6">
+    <h1 class="text-2xl font-bold text-white mb-4">Question Center</h1>
+    <p class="text-slate-300 mb-6">Get answers to your study questions with AI assistance.</p>
+    
+    <div class="bg-slate-700 rounded-lg p-6">
+        <form id="question-form" class="mb-6">
+            <label for="question-input" class="block text-white font-medium mb-2">Ask your question:</label>
+            <div class="flex">
+                <textarea id="question-input" rows="3" class="flex-grow bg-slate-800 border border-slate-600 rounded-l-lg px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Type your study question here..."></textarea>
+                <button type="submit" class="bg-violet-600 hover:bg-violet-700 text-white rounded-r-lg px-6 transition-colors flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    Ask
+                </button>
+            </div>
+        </form>
+        
+        <div id="answer-container" class="hidden">
+            <div class="flex items-start mb-4">
+                <div class="flex-shrink-0 bg-violet-500 h-8 w-8 rounded-full flex items-center justify-center mr-3">
+                    <span class="text-white font-bold">N</span>
+                </div>
+                <div class="bg-slate-800 rounded-lg py-3 px-4 max-w-full">
+                    <div id="answer-content" class="text-white prose prose-invert prose-sm max-w-none">
+                        <!-- Answer will be inserted here -->
+                    </div>
+                    <div class="mt-2 flex justify-between items-center">
+                        <div class="flex space-x-2">
+                            <button class="text-slate-400 hover:text-white text-sm flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                                </svg>
+                                Share
+                            </button>
+                            <button class="text-slate-400 hover:text-white text-sm flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                                </svg>
+                                Save
+                            </button>
+                        </div>
+                        <span class="text-slate-400 text-xs">Powered by Gemini</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loading-indicator" class="hidden flex justify-center py-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-violet-500"></div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-slate-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Recent Questions</h2>
+        <div class="space-y-4">
+            <div class="bg-slate-700 rounded-lg p-4 hover:bg-slate-600 transition-colors cursor-pointer">
+                <h3 class="font-medium text-white mb-1">How does the Pythagorean theorem work?</h3>
+                <p class="text-slate-400 text-sm">Asked 2 days ago</p>
+            </div>
+            
+            <div class="bg-slate-700 rounded-lg p-4 hover:bg-slate-600 transition-colors cursor-pointer">
+                <h3 class="font-medium text-white mb-1">Explain the difference between mitosis and meiosis</h3>
+                <p class="text-slate-400 text-sm">Asked 3 days ago</p>
+            </div>
+            
+            <div class="bg-slate-700 rounded-lg p-4 hover:bg-slate-600 transition-colors cursor-pointer">
+                <h3 class="font-medium text-white mb-1">What are the key themes in Shakespeare's Macbeth?</h3>
+                <p class="text-slate-400 text-sm">Asked 5 days ago</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-slate-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Study Resources</h2>
+        <div class="space-y-4">
+            <div class="bg-slate-700 rounded-lg p-4 flex items-center">
+                <div class="bg-emerald-500 rounded-full p-2 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-medium text-white">Math Formula Sheet</h3>
+                    <p class="text-slate-400 text-sm">Quick reference for common formulas</p>
+                </div>
+            </div>
+            
+            <div class="bg-slate-700 rounded-lg p-4 flex items-center">
+                <div class="bg-blue-500 rounded-full p-2 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-medium text-white">Video Tutorials</h3>
+                    <p class="text-slate-400 text-sm">Visual explanations of complex topics</p>
+                </div>
+            </div>
+            
+            <div class="bg-slate-700 rounded-lg p-4 flex items-center">
+                <div class="bg-amber-500 rounded-full p-2 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-medium text-white">Practice Tests</h3>
+                    <p class="text-slate-400 text-sm">Test your knowledge with sample questions</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const questionForm = document.getElementById('question-form');
+        const questionInput = document.getElementById('question-input');
+        const answerContainer = document.getElementById('answer-container');
+        const answerContent = document.getElementById('answer-content');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        
+        questionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const question = questionInput.value.trim();
+            
+            if (question) {
+                // Show loading indicator
+                answerContainer.classList.add('hidden');
+                loadingIndicator.classList.remove('hidden');
+                
+                // Simulate API call delay
+                setTimeout(function() {
+                    // Hide loading indicator
+                    loadingIndicator.classList.add('hidden');
+                    
+                    // Show answer container
+                    answerContainer.classList.remove('hidden');
+                    
+                    // Set sample answer (this would be replaced with actual API response)
+                    let sampleAnswer = '';
+                    
+                    if (question.toLowerCase().includes('pythagorean')) {
+                        sampleAnswer = `<p>The Pythagorean theorem states that in a right triangle, the square of the length of the hypotenuse equals the sum of squares of the other two sides.</p><p>If we call the sides <em>a</em> and <em>b</em>, and the hypotenuse <em>c</em>, then: <strong>a² + b² = c²</strong></p><p>This fundamental theorem is used extensively in geometry, trigonometry, and has practical applications in fields like construction, navigation, and physics.</p>`;
+                    } else if (question.toLowerCase().includes('mitosis') || question.toLowerCase().includes('meiosis')) {
+                        sampleAnswer = `<p>Mitosis and meiosis are both types of cell division, but they serve different purposes:</p><ul><li><strong>Mitosis</strong> produces two genetically identical diploid cells. It's used for growth, repair, and asexual reproduction.</li><li><strong>Meiosis</strong> produces four genetically diverse haploid cells. It's used in sexual reproduction to create gametes (eggs and sperm).</li></ul><p>The key difference is that meiosis involves two rounds of division and includes genetic recombination, while mitosis is a single division that maintains the genetic makeup.</p>`;
+                    } else {
+                        sampleAnswer = `<p>I'll help you understand this topic better!</p><p>Your question about "${question}" is interesting. In a full implementation, this would connect to the Gemini API to provide a detailed, accurate response based on current educational resources.</p><p>For now, this is a placeholder response. The actual system will provide in-depth explanations, examples, and learning resources tailored to your specific question.</p>`;
+                    }
+                    
+                    answerContent.innerHTML = sampleAnswer;
+                }, 1500);
+            }
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

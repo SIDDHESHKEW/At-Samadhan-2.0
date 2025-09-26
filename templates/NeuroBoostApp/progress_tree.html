@@ -1,0 +1,203 @@
+{% extends 'NeuroBoostApp/base.html' %}
+
+{% block title %}Progress Tree - NeuroBoost{% endblock %}
+
+{% block content %}
+<div class="bg-slate-800 rounded-xl shadow-lg p-6 mb-6">
+    <h1 class="text-2xl font-bold text-white mb-4">Your Progress Tree</h1>
+    <p class="text-slate-300 mb-6">Visualize your learning journey and achievements.</p>
+    
+    <div id="progress-tree-container" class="h-96 bg-slate-900 rounded-lg p-4">
+        <!-- D3.js visualization will be rendered here -->
+        <div class="flex items-center justify-center h-full">
+            <p class="text-slate-400">Progress tree visualization loading...</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-slate-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Achievements</h2>
+        <div class="space-y-4">
+            <div class="bg-slate-700 rounded-lg p-4 flex items-center">
+                <div class="bg-violet-600 rounded-full p-2 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-medium text-white">Consistency Champion</h3>
+                    <p class="text-slate-400 text-sm">Maintained a {{ user_profile.current_streak }} day streak</p>
+                </div>
+            </div>
+            
+            <div class="bg-slate-700 rounded-lg p-4 flex items-center">
+                <div class="bg-amber-500 rounded-full p-2 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-medium text-white">Focus Master</h3>
+                    <p class="text-slate-400 text-sm">Accumulated {{ user_profile.total_focus_time }} minutes of focus time</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-slate-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Level Progress</h2>
+        <div class="mb-4">
+            <div class="flex justify-between text-sm text-slate-300 mb-1">
+                <span>Level {{ user_profile.level }}</span>
+                <span>Level {{ user_profile.level|add:1 }}</span>
+            </div>
+            <div class="w-full bg-slate-700 rounded-full h-2.5">
+                {% with next_level_xp=user_profile.level|add:1|multiply:100 %}
+                {% with progress_percentage=user_profile.xp|divide:next_level_xp|multiply:100 %}
+                <div class="bg-violet-600 h-2.5 rounded-full" style="width: {{ progress_percentage }}%"></div>
+                {% endwith %}
+                {% endwith %}
+            </div>
+        </div>
+        <p class="text-slate-300 text-sm">{{ user_profile.xp }} XP earned so far</p>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fetch task data from API
+        fetch('/api/tasks/tree/')
+            .then(response => response.json())
+            .then(data => {
+                // Clear loading message
+                const container = document.getElementById('progress-tree-container');
+                container.innerHTML = '';
+                
+                // Set up D3.js tree visualization
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Create SVG container
+                const svg = d3.select('#progress-tree-container')
+                    .append('svg')
+                    .attr('width', width)
+                    .attr('height', height)
+                    .append('g')
+                    .attr('transform', `translate(${width / 2}, 50)`);
+                
+                // Create tree layout
+                const treeLayout = d3.tree()
+                    .size([width - 100, height - 100]);
+                
+                // Convert data to hierarchy
+                const root = d3.hierarchy(data);
+                
+                // Assign positions to nodes
+                const treeData = treeLayout(root);
+                
+                // Add links between nodes
+                svg.selectAll('.link')
+                    .data(treeData.links())
+                    .enter()
+                    .append('path')
+                    .attr('class', 'link')
+                    .attr('d', d => {
+                        return `M${d.source.x},${d.source.y}
+                                C${d.source.x},${(d.source.y + d.target.y) / 2}
+                                ${d.target.x},${(d.source.y + d.target.y) / 2}
+                                ${d.target.x},${d.target.y}`;
+                    })
+                    .attr('fill', 'none')
+                    .attr('stroke', '#475569') // slate-600
+                    .attr('stroke-width', d => {
+                        // Make links thicker for completed tasks
+                        if (d.target.data.completed) {
+                            return 3;
+                        }
+                        return 1.5;
+                    });
+                
+                // Add nodes
+                const nodes = svg.selectAll('.node')
+                    .data(treeData.descendants())
+                    .enter()
+                    .append('g')
+                    .attr('class', 'node')
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+                
+                // Add node circles
+                nodes.append('circle')
+                    .attr('r', d => {
+                        // Root node is larger
+                        if (!d.parent) return 15;
+                        // Category nodes are medium
+                        if (!d.data.completed && !d.data.id) return 10;
+                        // Task nodes size based on completion
+                        return d.data.size || 8;
+                    })
+                    .attr('fill', d => {
+                        // Root node is violet
+                        if (!d.parent) return '#8b5cf6'; // violet-500
+                        // Category nodes are blue
+                        if (!d.data.completed && !d.data.id) return '#3b82f6'; // blue-500
+                        // Completed tasks are green, incomplete are gray
+                        return d.data.completed ? '#10b981' : '#64748b'; // emerald-500 : slate-500
+                    })
+                    .attr('stroke', '#0f172a') // slate-900
+                    .attr('stroke-width', 1.5);
+                
+                // Add leaf icons for task nodes
+                nodes.filter(d => d.data.id) // Only task nodes have IDs
+                    .append('path')
+                    .attr('d', 'M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm.53 15.28l-3.47-3.53a.75.75 0 011.06-1.06l2.94 2.47 4.94-4.94a.75.75 0 111.06 1.06l-5.53 5.53a.75.75 0 01-1.06 0z')
+                    .attr('transform', 'scale(0.5) translate(-12, -12)')
+                    .attr('fill', d => d.data.completed ? '#ffffff' : 'transparent')
+                    .attr('stroke', d => d.data.completed ? 'transparent' : '#ffffff')
+                    .attr('stroke-width', 0.5);
+                
+                // Add node labels
+                nodes.append('text')
+                    .attr('dy', d => !d.parent ? -20 : 20)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', '#f1f5f9') // slate-100
+                    .style('font-size', d => !d.parent ? '14px' : '12px')
+                    .text(d => d.data.name);
+                
+                // Add tooltips for task nodes
+                nodes.filter(d => d.data.id)
+                    .append('title')
+                    .text(d => {
+                        let tooltip = `${d.data.name}\n`;
+                        tooltip += `Status: ${d.data.completed ? 'Completed' : 'Pending'}\n`;
+                        if (d.data.description) tooltip += `Description: ${d.data.description}\n`;
+                        if (d.data.deadline) tooltip += `Deadline: ${d.data.deadline}\n`;
+                        tooltip += `XP: ${d.data.xp || 0}`;
+                        return tooltip;
+                    });
+            })
+            .catch(error => {
+                console.error('Error fetching task tree data:', error);
+                const container = document.getElementById('progress-tree-container');
+                container.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-red-500">Error loading progress tree. Please try again later.</p></div>';
+            });
+    });
+</script>
+
+<style>
+    /* D3.js tree visualization styles */
+    .node circle {
+        transition: fill 0.3s, r 0.3s;
+    }
+    
+    .node:hover circle {
+        filter: brightness(1.2);
+    }
+    
+    .link {
+        transition: stroke-width 0.3s;
+    }
+</style>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,233 @@
+{% extends 'NeuroBoostApp/base.html' %}
+
+{% block title %}Progress Tracker - NeuroBoost{% endblock %}
+
+{% block content %}
+<div class="bg-slate-800 rounded-xl shadow-lg p-6 mb-6">
+    <h1 class="text-2xl font-bold text-white mb-4">Your Progress Tracker</h1>
+    <p class="text-slate-300 mb-6">Track your productivity metrics and growth over time.</p>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <!-- Task Completion Card -->
+        <div class="bg-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
+            <h3 class="text-lg font-medium text-white mb-2">Task Completion</h3>
+            <div class="text-3xl font-bold text-emerald-400 mb-1" id="task-completion-rate">0%</div>
+            <p class="text-slate-400 text-sm">of all tasks completed</p>
+        </div>
+        
+        <!-- Study Time Card -->
+        <div class="bg-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
+            <h3 class="text-lg font-medium text-white mb-2">Total Study Time</h3>
+            <div class="text-3xl font-bold text-blue-400 mb-1" id="total-study-time">0h</div>
+            <p class="text-slate-400 text-sm">logged in focus sessions</p>
+        </div>
+        
+        <!-- XP Growth Card -->
+        <div class="bg-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
+            <h3 class="text-lg font-medium text-white mb-2">XP Growth</h3>
+            <div class="text-3xl font-bold text-violet-400 mb-1" id="xp-growth">0 XP</div>
+            <p class="text-slate-400 text-sm">earned this week</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Task Completion Chart -->
+    <div class="bg-slate-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Task Completion by Category</h2>
+        <div class="h-64">
+            <canvas id="taskCategoryChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Focus Time Chart -->
+    <div class="bg-slate-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Focus Time (Last 7 Days)</h2>
+        <div class="h-64">
+            <canvas id="focusTimeChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="bg-slate-800 rounded-xl shadow-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-4">XP Growth Over Time</h2>
+    <div class="h-64">
+        <canvas id="xpGrowthChart"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fetch progress data from API
+        fetch('/api/progress/')
+            .then(response => response.json())
+            .then(data => {
+                // Update summary cards
+                document.getElementById('task-completion-rate').textContent = `${Math.round(data.completion_rate)}%`;
+                document.getElementById('total-study-time').textContent = `${Math.floor(data.total_focus_minutes / 60)}h ${data.total_focus_minutes % 60}m`;
+                document.getElementById('xp-growth').textContent = `${data.xp_last_week} XP`;
+                
+                // Create Task Category Chart (Pie Chart)
+                const taskCategoryCtx = document.getElementById('taskCategoryChart').getContext('2d');
+                
+                // Extract category data
+                const categories = [];
+                const completionRates = [];
+                
+                for (const category in data.category_stats) {
+                    categories.push(category);
+                    completionRates.push(data.category_stats[category].completion_rate);
+                }
+                
+                const taskCategoryChart = new Chart(taskCategoryCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            data: completionRates,
+                            backgroundColor: [
+                                'rgba(59, 130, 246, 0.8)', // blue-500
+                                'rgba(139, 92, 246, 0.8)', // violet-500
+                                'rgba(16, 185, 129, 0.8)', // emerald-500
+                                'rgba(249, 115, 22, 0.8)', // orange-500
+                                'rgba(236, 72, 153, 0.8)'  // pink-500
+                            ],
+                            borderColor: '#0f172a', // slate-900
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: '#f1f5f9' // slate-100
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const category = categories[context.dataIndex];
+                                        const categoryData = data.category_stats[category];
+                                        return [
+                                            `${category}: ${categoryData.total} tasks`,
+                                            `Completed: ${categoryData.completed} (${Math.round(categoryData.completion_rate)}%)`
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Create Focus Time Chart (Bar Chart)
+                const focusTimeCtx = document.getElementById('focusTimeChart').getContext('2d');
+                const focusTimeChart = new Chart(focusTimeCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.focus_time_data.labels,
+                        datasets: [{
+                            label: 'Minutes',
+                            data: data.focus_time_data.values,
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)', // blue-500
+                            borderColor: 'rgb(59, 130, 246)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(71, 85, 105, 0.2)' // slate-600
+                                },
+                                ticks: {
+                                    color: '#cbd5e1' // slate-300
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: '#cbd5e1' // slate-300
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+                
+                // Create XP Growth Chart (Line Chart)
+                const xpGrowthCtx = document.getElementById('xpGrowthChart').getContext('2d');
+                const xpGrowthChart = new Chart(xpGrowthCtx, {
+                    type: 'line',
+                    data: {
+                        labels: data.xp_data.labels,
+                        datasets: [{
+                            label: 'XP Earned',
+                            data: data.xp_data.values,
+                            borderColor: 'rgb(139, 92, 246)', // violet-500
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: 'rgb(139, 92, 246)',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(71, 85, 105, 0.2)' // slate-600
+                                },
+                                ticks: {
+                                    color: '#cbd5e1' // slate-300
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: '#cbd5e1' // slate-300
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#f1f5f9' // slate-100
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching progress data:', error);
+                // Display error message
+                const containers = document.querySelectorAll('canvas');
+                containers.forEach(container => {
+                    const parent = container.parentElement;
+                    parent.innerHTML = '<div class="flex items-center justify-center h-full"><p class="text-red-500">Error loading progress data. Please try again later.</p></div>';
+                });
+            });
+    });
+</script>
+{% endblock %}
