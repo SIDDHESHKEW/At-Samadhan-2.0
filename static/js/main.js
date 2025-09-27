@@ -145,7 +145,7 @@ function initializeTimerWidget() {
         };
         
         // Send to backend
-        fetch('/session/', {
+        fetch('/api/focus-session/log/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -212,7 +212,7 @@ function initializeChatbot() {
                 }, 500);
                 
                 // Send to backend API
-                fetch('/chatbot/', {
+                fetch('/api/chatbot/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -298,7 +298,7 @@ function initializeDistractionShield() {
     window.showDistractionShield = function() {
         if (distractionShield) {
             // Fetch latest data from backend
-            fetch('/shield-data/')
+            fetch('/api/shield-data/')
                 .then(response => response.json())
                 .then(data => {
                     // Update shield data

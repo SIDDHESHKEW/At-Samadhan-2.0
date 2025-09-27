@@ -48,7 +48,7 @@ function initializeSyllabusForm(form) {
         const formData = new FormData(form);
         
         // Submit form data
-        fetch('/api/question-center/register-syllabus/', {
+        fetch('/api/user/register-syllabus/', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken()

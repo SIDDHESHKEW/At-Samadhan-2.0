@@ -167,7 +167,7 @@ function formatChatTimestamp(timestamp) {
  * @param {string} chatId - Chat ID
  */
 function loadPreviousMessages(chatId) {
-    fetch(`/api/chat/${chatId}/messages/`)
+    fetch(`/api/chat/${chatId}/history/`)
         .then(response => response.json())
         .then(data => {
             const chatMessages = document.getElementById('chat-messages');

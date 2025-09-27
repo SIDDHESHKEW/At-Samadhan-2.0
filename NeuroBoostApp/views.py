@@ -581,7 +581,7 @@ def connections(request):
     
     # Get shared goals
     shared_goals = SharedGoal.objects.filter(
-        Q(creator=user) | Q(participants=user)
+        Q(created_by=user) | Q(participants=user)
     ).distinct()
     
     context = {
