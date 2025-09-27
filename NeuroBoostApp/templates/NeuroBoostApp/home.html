@@ -45,9 +45,10 @@
                 </div>
                 <!-- XP Progress Bar (Using Django calculation logic) -->
                 {% with progress_percent=user_profile.xp|stringformat:"d"|slice:"-2:"|default:"0" %}
-                <div class="w-full bg-slate-700 rounded-full h-2.5 mt-1">
-                    <div id="xp-bar" class="bg-violet-500 h-2.5 rounded-full transition-all duration-500"
-                        style="width: {{ progress_percent }}%">
+                <div class="w-full bg-slate-700 rounded-full h-2.5 mt-1 xp-progress-container relative">
+                    <div id="xp-bar"
+                        class="bg-violet-500 h-2.5 rounded-full transition-all duration-500 absolute top-0 left-0"
+                        style="width: {{ progress_percent }}%; max-width: 100%;">
                     </div>
                 </div>
                 {% endwith %}
@@ -242,8 +243,13 @@
     // Task management functionality
     async function toggleTask(taskId, currentStatus) {
         try {
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
-                document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+            // Get CSRF token from form or cookie
+            let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+            if (!csrfToken) {
+                csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+            }
+
+            console.log('Toggling task:', taskId, 'Current status:', currentStatus, 'CSRF token:', csrfToken ? 'Found' : 'Missing');
 
             const response = await fetch(`/api/tasks/toggle/${taskId}/`, {
                 method: 'POST',
@@ -254,54 +260,153 @@
                 credentials: 'include'
             });
 
+            console.log('Response status:', response.status);
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('Task toggle response:', data);
+                console.log('XP data:', {
+                    xp_gained: data.xp_gained,
+                    total_xp: data.total_xp,
+                    level: data.level,
+                    level_up: data.level_up
+                });
 
-                // Update the UI
-                const taskElement = document.querySelector(`[onclick="toggleTask(${taskId},"]`);
-                const button = taskElement.querySelector('button');
-                const taskTitle = taskElement.previousElementSibling.querySelector('span');
+                // Find the task element by looking for the button with the specific onclick
+                const taskElement = document.querySelector(`button[onclick*="toggleTask(${taskId}"]`);
+                if (!taskElement) {
+                    console.error('Could not find task element for ID:', taskId);
+                    showNotification('Task updated but UI could not be updated', 'error');
+                    return;
+                }
+
+                // Find the task container (parent div)
+                const taskContainer = taskElement.closest('.flex.items-center.justify-between');
+                if (!taskContainer) {
+                    console.error('Could not find task container');
+                    return;
+                }
+
+                // Find the task title span
+                const taskTitle = taskContainer.querySelector('.flex-grow span');
+                if (!taskTitle) {
+                    console.error('Could not find task title');
+                    return;
+                }
 
                 if (data.completed) {
-                    button.textContent = 'Undo';
-                    button.className = button.className.replace('bg-violet-600', 'bg-emerald-600').replace('hover:bg-violet-700', 'hover:bg-emerald-700');
+                    // Task is now completed
+                    taskElement.textContent = 'Undo';
+                    taskElement.className = taskElement.className.replace('bg-violet-600', 'bg-emerald-600').replace('hover:bg-violet-700', 'hover:bg-emerald-700');
                     taskTitle.classList.add('line-through', 'text-slate-400');
 
-                    // Show XP notification
-                    if (data.xp_gained) {
-                        showNotification(`+${data.xp_gained} XP earned!`, 'success');
-
+                    // Always update XP display if data is available
+                    if (data.total_xp !== undefined && data.level !== undefined) {
                         // Update XP display
                         const currentXpElement = document.getElementById('current-xp');
                         const currentLevelElement = document.getElementById('current-level');
+                        const xpNeededElement = document.getElementById('xp-needed');
+                        const xpBarElement = document.getElementById('xp-bar');
+
                         if (currentXpElement && currentLevelElement) {
                             currentXpElement.textContent = data.total_xp;
                             currentLevelElement.textContent = data.level;
+
+                            // Update XP needed for next level
+                            if (xpNeededElement) {
+                                const xpToNextLevel = ((data.level + 1) * 100) - data.total_xp;
+                                xpNeededElement.textContent = `${xpToNextLevel} to next level`;
+                            }
+
+                            // Update XP progress bar
+                            if (xpBarElement) {
+                                const xpForCurrentLevel = (data.level - 1) * 100;
+                                const xpProgress = data.total_xp - xpForCurrentLevel;
+                                const progressPercent = Math.min(100, Math.max(0, (xpProgress / 100) * 100));
+                                console.log('XP Bar Update:', {
+                                    total_xp: data.total_xp,
+                                    level: data.level,
+                                    xpForCurrentLevel: xpForCurrentLevel,
+                                    xpProgress: xpProgress,
+                                    progressPercent: progressPercent
+                                });
+                                xpBarElement.style.width = `${progressPercent}%`;
+                                xpBarElement.style.maxWidth = '100%';
+                            }
+                        }
+
+                        // Show XP notification if XP was gained
+                        if (data.xp_gained && data.xp_gained > 0) {
+                            showNotification(`+${data.xp_gained} XP earned!`, 'success');
                         }
 
                         // Check for level up
                         if (data.level_up) {
                             showNotification(`Level Up! You're now level ${data.level}!`, 'success');
+
+                            // Add level up animation
+                            if (currentLevelElement) {
+                                currentLevelElement.classList.add('level-up');
+                                setTimeout(() => {
+                                    currentLevelElement.classList.remove('level-up');
+                                }, 1000);
+                            }
+                        }
+
+                        // Update streak display if available
+                        if (data.streak !== undefined) {
+                            const streakElement = document.getElementById('current-streak');
+                            if (streakElement) {
+                                streakElement.textContent = data.streak;
+                            }
                         }
                     }
                 } else {
-                    button.textContent = 'Done';
-                    button.className = button.className.replace('bg-emerald-600', 'bg-violet-600').replace('hover:bg-emerald-700', 'hover:bg-violet-700');
+                    // Task is now incomplete
+                    taskElement.textContent = 'Done';
+                    taskElement.className = taskElement.className.replace('bg-emerald-600', 'bg-violet-600').replace('hover:bg-emerald-700', 'hover:bg-violet-700');
                     taskTitle.classList.remove('line-through', 'text-slate-400');
+
+                    // Update XP display for undo case too
+                    if (data.total_xp !== undefined && data.level !== undefined) {
+                        const currentXpElement = document.getElementById('current-xp');
+                        const currentLevelElement = document.getElementById('current-level');
+                        const xpNeededElement = document.getElementById('xp-needed');
+                        const xpBarElement = document.getElementById('xp-bar');
+
+                        if (currentXpElement && currentLevelElement) {
+                            currentXpElement.textContent = data.total_xp;
+                            currentLevelElement.textContent = data.level;
+
+                            // Update XP needed for next level
+                            if (xpNeededElement) {
+                                const xpToNextLevel = ((data.level + 1) * 100) - data.total_xp;
+                                xpNeededElement.textContent = `${xpToNextLevel} to next level`;
+                            }
+
+                            // Update XP progress bar
+                            if (xpBarElement) {
+                                const xpForCurrentLevel = (data.level - 1) * 100;
+                                const xpProgress = data.total_xp - xpForCurrentLevel;
+                                const progressPercent = Math.min(100, Math.max(0, (xpProgress / 100) * 100));
+                                xpBarElement.style.width = `${progressPercent}%`;
+                                xpBarElement.style.maxWidth = '100%';
+                            }
+                        }
+                    }
                 }
 
-                // Update button onclick
+                // Update button onclick with new status
                 taskElement.setAttribute('onclick', `toggleTask(${taskId}, ${data.completed})`);
 
             } else {
                 const errorData = await response.json();
                 console.error('Task toggle failed:', response.status, errorData);
-                showNotification(`Failed to update task: ${response.status}`, 'error');
+                showNotification(`Failed to update task: ${response.status} - ${errorData.error || 'Unknown error'}`, 'error');
             }
         } catch (error) {
             console.error('Error:', error);
-            showNotification('Error updating task', 'error');
+            showNotification('Error updating task: ' + error.message, 'error');
         }
     }
 
@@ -319,7 +424,46 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Any initialization code for the dashboard can go here
+        // Initialize XP display with current values
+        initializeXPDisplay();
     });
+
+    // Function to initialize XP display
+    function initializeXPDisplay() {
+        const currentXpElement = document.getElementById('current-xp');
+        const currentLevelElement = document.getElementById('current-level');
+        const xpNeededElement = document.getElementById('xp-needed');
+        const xpBarElement = document.getElementById('xp-bar');
+
+        if (currentXpElement && currentLevelElement) {
+            const currentXP = parseInt(currentXpElement.textContent) || 0;
+            const currentLevel = parseInt(currentLevelElement.textContent) || 1;
+
+            // Update XP needed for next level
+            if (xpNeededElement) {
+                const xpToNextLevel = ((currentLevel + 1) * 100) - currentXP;
+                xpNeededElement.textContent = `${xpToNextLevel} to next level`;
+            }
+
+            // Update XP progress bar
+            if (xpBarElement) {
+                const xpForCurrentLevel = (currentLevel - 1) * 100;
+                const xpProgress = currentXP - xpForCurrentLevel;
+                const progressPercent = Math.min(100, Math.max(0, (xpProgress / 100) * 100));
+                xpBarElement.style.width = `${progressPercent}%`;
+                xpBarElement.style.maxWidth = '100%';
+            }
+        }
+    }
+
+    // Debug function to test XP bar (can be called from console)
+    window.testXPBar = function () {
+        console.log('Testing XP bar update...');
+        const xpBarElement = document.getElementById('xp-bar');
+        if (xpBarElement) {
+            xpBarElement.style.width = '50%';
+            console.log('XP bar set to 50%');
+        }
+    };
 </script>
 {% endblock %}

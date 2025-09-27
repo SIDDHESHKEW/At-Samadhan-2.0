@@ -603,6 +603,7 @@ def question_center(request):
     return render(request, 'NeuroBoostApp/question_center.html', context)
 
 
+@csrf_exempt
 @login_required
 def api_toggle_task_complete(request, task_id):
     """API endpoint to toggle task completion status"""
@@ -617,11 +618,19 @@ def api_toggle_task_complete(request, task_id):
         except Task.DoesNotExist:
             return JsonResponse({'error': f'Task {task_id} not found for user {request.user.username}'}, status=404)
         
+        # Debug logging
+        print(f"Toggling task {task_id} for user {request.user.username}. Current status: {task.completed}")
+        
         task.completed = not task.completed
         
         response_data = {
             'task_id': task_id,
             'completed': task.completed,
+            'total_xp': request.user.userprofile.xp,
+            'level': request.user.userprofile.level,
+            'level_up': False,
+            'xp_gained': 0,
+            'streak': request.user.userprofile.current_streak,
         }
         
         # If task is being marked as complete, award XP and update streak
@@ -654,8 +663,10 @@ def api_toggle_task_complete(request, task_id):
             })
         
         task.save()
+        print(f"Task {task_id} saved. New status: {task.completed}")
         return JsonResponse(response_data)
     except Exception as e:
+        print(f"Error in api_toggle_task_complete: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 

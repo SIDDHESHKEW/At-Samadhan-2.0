@@ -44,6 +44,11 @@
                             glow: {
                                 '0%': { boxShadow: '0 0 5px rgba(16, 185, 129, 0.7)' },
                                 '100%': { boxShadow: '0 0 20px rgba(16, 185, 129, 0.9)' }
+                            },
+                            'level-up': {
+                                '0%': { transform: 'scale(1)', color: '#f1f5f9' },
+                                '50%': { transform: 'scale(1.2)', color: '#fbbf24' },
+                                '100%': { transform: 'scale(1)', color: '#f1f5f9' }
                             }
                         }
                     }
@@ -106,6 +111,33 @@
                 transition-property: all;
                 transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
                 transition-duration: 300ms;
+            }
+
+            /* Level up animation */
+            .level-up {
+                animation: level-up 1s ease-out;
+            }
+
+            /* Ensure proper containment for visualizations */
+            #progress-tree-container {
+                position: relative;
+                overflow: hidden;
+            }
+
+            #progress-tree-container svg {
+                max-width: 100%;
+                max-height: 100%;
+            }
+
+            /* XP bar container */
+            .xp-progress-container {
+                position: relative;
+                overflow: hidden;
+            }
+
+            #xp-bar {
+                max-width: 100% !important;
+                overflow: hidden;
             }
         </style>
 

@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
  * @returns {Promise} Promise that resolves with task data
  */
 function fetchTaskData() {
-    return fetch('/api/tasks/tree/')
+    return fetch('/api/progress/tree/')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -49,7 +49,7 @@ function createTaskTree(data) {
     
     // Set up dimensions
     const width = treeContainer.clientWidth;
-    const height = 600;
+    const height = treeContainer.clientHeight;
     
     // Create SVG container
     const svg = d3.select('#progress-tree-container')
@@ -61,7 +61,7 @@ function createTaskTree(data) {
     
     // Create a tree layout
     const treeLayout = d3.tree()
-        .size([width - 100, height - 100]);
+        .size([width - 50, height - 50]);
     
     // Convert flat data to hierarchical structure if needed
     const hierarchicalData = createHierarchy(data);
@@ -197,6 +197,14 @@ function createTaskTree(data) {
             .attr('class', 'absolute hidden bg-slate-800 text-white p-2 rounded-lg shadow-lg z-50 text-sm border border-slate-700')
             .style('pointer-events', 'none');
     }
+    
+    // Add resize handler
+    window.addEventListener('resize', function() {
+        // Recreate the tree on resize
+        setTimeout(() => {
+            createTaskTree(data);
+        }, 100);
+    });
 }
 
 /**

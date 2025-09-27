@@ -49,7 +49,7 @@ function initializeTaskList() {
             submitButton.innerHTML = '<div class="animate-pulse">Adding...</div>';
             
             // Submit form data
-            fetch('/api/tasks/add/', {
+            fetch('/api/tasks/create/', {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': getCSRFToken()
@@ -118,7 +118,7 @@ function loadTasks() {
     taskList.innerHTML = '<div class="text-center py-4"><div class="animate-pulse">Loading tasks...</div></div>';
     
     // Fetch tasks
-    fetch('/api/tasks/list/')
+    fetch('/api/tasks/')
         .then(response => response.json())
         .then(data => {
             // Clear loading state
@@ -234,7 +234,7 @@ function toggleTaskCompletion(taskId, completed, taskItem) {
     }
     
     // Update task completion status on server
-    fetch(`/api/tasks/toggle/${taskId}/`, {
+    fetch(`/api/tasks/${taskId}/toggle-complete/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
