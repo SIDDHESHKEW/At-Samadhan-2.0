@@ -22,14 +22,18 @@ urlpatterns = [
     path('api/tasks/create/', views.api_create_task, name='api_create_task'),
     path('api/tasks/toggle/<int:task_id>/', views.api_toggle_task_complete, name='api_toggle_task_complete'),
     path('api/tasks/tree/', views.api_task_tree, name='api_task_tree'),
+    path('api/tasks/list/', views.api_tasks, name='api_tasks_list'),
+    path('api/tasks/add/', views.api_create_task, name='api_tasks_add'),
     
     # User Data APIs
     path('api/user/xp/', views.api_user_xp, name='api_user_xp'),
     path('api/user/streak/', views.api_user_streak, name='api_user_streak'),
-    path('api/user/progress/', views.api_progress, name='api_progress'),
+    path('api/user/progress/', views.api_progress, name='api_user_progress'),
+    path('api/progress/', views.api_progress, name='api_progress'),
     
     # Focus Session API
     path('api/focus-session/log/', views.api_log_focus_session, name='api_log_focus_session'),
+    path('api/session/', views.api_log_focus_session, name='api_session'),
     
     # Universal Widgets APIs
     path('api/chatbot/', views.api_chatbot, name='api_chatbot'),

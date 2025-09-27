@@ -159,7 +159,7 @@ def home(request):
         end_time__lte=today_end
     )
     
-    total_focus_time_today = today_focus_sessions.aggregate(Sum('duration'))['duration__sum'] or 0
+    total_focus_time_today = today_focus_sessions.aggregate(Sum('duration_minutes'))['duration_minutes__sum'] or 0
     total_focus_time_today_str = f"{total_focus_time_today // 60}h {total_focus_time_today % 60}m"
     
     # Get motivational content for the distraction shield
@@ -330,30 +330,35 @@ def api_shield_data(request):
         streak = user_profile.current_streak
         
         # Calculate XP earned in the last 7 days
+        from .models import XPHistory
         xp_this_week = XPHistory.objects.filter(
             user=user,
             created_at__date__gte=seven_days_ago,
             created_at__date__lte=today
         ).aggregate(Sum('amount'))['amount__sum'] or 0
         
-        # Get motivational quotes
-        quotes = [
-            "Focus on being productive instead of busy.",
-            "The key to success is to focus on goals, not obstacles.",
-            "Don't wait for opportunity. Create it.",
-            "Success is not final, failure is not fatal: It is the courage to continue that counts.",
-            "The only way to do great work is to love what you do.",
-            "Your future is created by what you do today, not tomorrow.",
-            "The difference between ordinary and extraordinary is that little extra.",
-            "The harder you work for something, the greater you'll feel when you achieve it.",
-            "Dream big, work hard, stay focused.",
-            "Small progress is still progress."
-        ]
+        # Get motivational content
+        motivational_content = MotivationalContent.objects.order_by('?').first()
+        
+        # Get user stats
+        tasks_completed_today = Task.objects.filter(
+            user=user,
+            completed=True,
+            created_at__date=today
+        ).count()
+        
+        focus_minutes_today = FocusSession.objects.filter(
+            user=user,
+            created_at__date=today
+        ).aggregate(total=Sum('duration_minutes'))['total'] or 0
         
         return JsonResponse({
             'streak': streak,
             'xp_this_week': xp_this_week,
-            'quotes': quotes
+            'quote': motivational_content.content if motivational_content else "Stay focused on your goals!",
+            'author': motivational_content.author if motivational_content else "NeuroBoost",
+            'tasks_completed_today': tasks_completed_today,
+            'focus_minutes_today': focus_minutes_today
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -414,6 +419,7 @@ def api_task_tree(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+@csrf_exempt
 @login_required
 def api_chatbot(request):
     """API endpoint for the chatbot using Gemini API"""
@@ -504,34 +510,6 @@ def api_chatbot(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@login_required
-def api_shield_data(request):
-    """API endpoint to get data for the distraction shield"""
-    user_profile = request.user.userprofile
-    
-    # Get motivational content
-    motivational_content = MotivationalContent.objects.order_by('?').first()
-    
-    # Get user stats
-    tasks_completed_today = Task.objects.filter(
-        user=request.user,
-        completed=True,
-        created_at__date=timezone.now().date()
-    ).count()
-    
-    focus_minutes_today = FocusSession.objects.filter(
-        user=request.user,
-        created_at__date=timezone.now().date()
-    ).aggregate(total=Sum('duration_minutes'))['total'] or 0
-    
-    return JsonResponse({
-        'quote': motivational_content.quote if motivational_content else "Stay focused on your goals!",
-        'author': motivational_content.author if motivational_content else "NeuroBoost",
-        'streak': user_profile.current_streak,
-        'level': user_profile.level,
-        'tasks_completed_today': tasks_completed_today,
-        'focus_minutes_today': focus_minutes_today
-    })
 
 
 # Page Views
@@ -629,7 +607,16 @@ def question_center(request):
 def api_toggle_task_complete(request, task_id):
     """API endpoint to toggle task completion status"""
     try:
-        task = get_object_or_404(Task, id=task_id, user=request.user)
+        # Debug: Check if user is authenticated
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'User not authenticated'}, status=401)
+        
+        # Debug: Check if task exists
+        try:
+            task = Task.objects.get(id=task_id, user=request.user)
+        except Task.DoesNotExist:
+            return JsonResponse({'error': f'Task {task_id} not found for user {request.user.username}'}, status=404)
+        
         task.completed = not task.completed
         
         response_data = {
@@ -753,6 +740,7 @@ def api_progress(request):
     total_focus_hours = round(total_focus_minutes / 60, 1)
     
     # Get XP data for the last 7 days
+    from .models import XPHistory
     xp_history = XPHistory.objects.filter(
         user=user,
         created_at__date__gte=seven_days_ago,
@@ -776,23 +764,30 @@ def api_progress(request):
     # Calculate total XP earned in the last 7 days
     xp_last_week = sum(xp['total_xp'] for xp in xp_history)
     
-    # Format focus data for chart display
-    focus_time_data = [{
-        'day': (seven_days_ago + timedelta(days=i)).strftime('%a'),
-        'date': date,
-        'minutes': focus_data_dict.get(date, 0)
-    } for i, date in enumerate(date_range)]
+    # Format data for charts
+    focus_time_labels = [(seven_days_ago + timedelta(days=i)).strftime('%a') for i in range(7)]
+    focus_time_values = [focus_data_dict.get(date, 0) for date in date_range]
+    
+    xp_labels = [(seven_days_ago + timedelta(days=i)).strftime('%a') for i in range(7)]
+    xp_values = [xp_data_dict.get(date, 0) for date in date_range]
     
     return JsonResponse({
         'completion_rate': completion_rate,
         'category_stats': category_stats,
-        'focus_time_data': focus_time_data,
-        'xp_data': xp_data,
+        'focus_time_data': {
+            'labels': focus_time_labels,
+            'values': focus_time_values
+        },
+        'xp_data': {
+            'labels': xp_labels,
+            'values': xp_values
+        },
         'total_focus_minutes': total_focus_minutes,
         'xp_last_week': xp_last_week
     })
 
 
+@csrf_exempt
 @login_required
 def api_log_focus_session(request):
     """API endpoint to log a focus session"""
@@ -840,3 +835,4 @@ def api_log_focus_session(request):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+

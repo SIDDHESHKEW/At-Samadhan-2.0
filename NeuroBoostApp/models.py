@@ -53,7 +53,7 @@ class UserProfile(models.Model):
         return math.floor(self.xp / 100) + 1
 
     # Method to handle XP gain and level updates
-    def gain_xp(self, amount):
+    def gain_xp(self, amount, source='task_completion', description=''):
         self.xp += amount
         new_level = self.calculate_level()
         
@@ -63,6 +63,15 @@ class UserProfile(models.Model):
             level_up = True # Track if a level up occurred
             
         self.save()
+        
+        # Create XP history entry
+        XPHistory.objects.create(
+            user=self.user,
+            amount=amount,
+            source=source,
+            description=description
+        )
+        
         return level_up # Return status for potential notification
     
     # NEW: Method to update streak
@@ -109,26 +118,27 @@ def save_user_profile(sender, instance, **kwargs):
 # Model to track focus sessions
 class FocusSession(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    start_time = models.DateTimeField()
-    end_time = models.DateTimeField()
-    duration = models.IntegerField()  # Duration in minutes
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    duration_minutes = models.IntegerField(default=0)  # Duration in minutes
     created_at = models.DateTimeField(auto_now_add=True)
     xp_awarded = models.IntegerField(default=0)
+    notes = models.TextField(blank=True)
     
     def save(self, *args, **kwargs):
         # Calculate duration if not set
-        if not self.duration and self.start_time and self.end_time:
+        if not self.duration_minutes and self.start_time and self.end_time:
             delta = self.end_time - self.start_time
-            self.duration = delta.seconds // 60
+            self.duration_minutes = delta.seconds // 60
         
         # Award XP for sessions 25 minutes or longer
-        if self.duration >= 25 and self.xp_awarded == 0:
+        if self.duration_minutes >= 25 and self.xp_awarded == 0:
             self.xp_awarded = 15
             
         super().save(*args, **kwargs)
     
     def __str__(self):
-        return f'{self.user.username} - {self.duration} minutes on {self.start_time.date()}'
+        return f'{self.user.username} - {self.duration_minutes} minutes on {self.created_at.date()}'
 
 
 # Model for friend connections
@@ -254,3 +264,15 @@ class MotivationalContent(models.Model):
     
     def __str__(self):
         return f'{self.content_type}: {self.content[:50]}...'
+
+
+# Model to track XP history for analytics
+class XPHistory(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    amount = models.IntegerField()  # XP gained or lost
+    source = models.CharField(max_length=50)  # 'task_completion', 'focus_session', 'streak_bonus', etc.
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f'{self.user.username}: +{self.amount} XP from {self.source}'

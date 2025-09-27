@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>NeuroBoost API Test</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+                background: #0f172a;
+                color: white;
+            }
+
+            .test-section {
+                margin: 20px 0;
+                padding: 15px;
+                background: #1e293b;
+                border-radius: 8px;
+            }
+
+            .success {
+                color: #10b981;
+            }
+
+            .error {
+                color: #ef4444;
+            }
+
+            .loading {
+                color: #f59e0b;
+            }
+
+            button {
+                background: #8b5cf6;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                margin: 5px;
+            }
+
+            button:hover {
+                background: #7c3aed;
+            }
+
+            .result {
+                margin-top: 10px;
+                padding: 10px;
+                background: #374151;
+                border-radius: 5px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>NeuroBoost API Integration Test</h1>
+
+        <div class="test-section">
+            <h3>Login Test</h3>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="login-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>API Endpoints Test</h3>
+            <button onclick="testAllAPIs()">Test All APIs</button>
+            <div id="api-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Chatbot Test</h3>
+            <button onclick="testChatbot()">Test Chatbot</button>
+            <div id="chatbot-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Task Management Test</h3>
+            <button onclick="testTaskManagement()">Test Task Operations</button>
+            <div id="task-result" class="result"></div>
+        </div>
+
+        <script>
+            let sessionCookie = '';
+
+            async function testLogin() {
+                const resultDiv = document.getElementById('login-result');
+                resultDiv.innerHTML = '<span class="loading">Testing login...</span>';
+
+                try {
+                    // First get the login page to get CSRF token
+                    const loginPage = await fetch('http://127.0.0.1:8000/login/');
+                    const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+                    // Login
+                    const formData = new FormData();
+                    formData.append('username', 'testuser');
+                    formData.append('password', 'password123');
+                    formData.append('csrfmiddlewaretoken', csrfToken);
+
+                    const response = await fetch('http://127.0.0.1:8000/login/', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include'
+                    });
+
+                    if (response.ok) {
+                        resultDiv.innerHTML = '<span class="success">✓ Login successful!</span>';
+                    } else {
+                        resultDiv.innerHTML = '<span class="error">✗ Login failed: ' + response.status + '</span>';
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = '<span class="error">✗ Login error: ' + error.message + '</span>';
+                }
+            }
+
+            async function testAllAPIs() {
+                const resultDiv = document.getElementById('api-result');
+                resultDiv.innerHTML = '<span class="loading">Testing APIs...</span>';
+
+                const endpoints = [
+                    '/api/tasks/',
+                    '/api/user/xp/',
+                    '/api/user/streak/',
+                    '/api/progress/',
+                    '/api/shield-data/',
+                    '/api/tasks/tree/',
+                ];
+
+                let results = [];
+
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch('http://127.0.0.1:8000' + endpoint, {
+                            credentials: 'include'
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            results.push(`<span class="success">✓ ${endpoint}</span> - Keys: ${Object.keys(data).join(', ')}`);
+                        } else {
+                            results.push(`<span class="error">✗ ${endpoint}</span> - Status: ${response.status}`);
+                        }
+                    } catch (error) {
+                        results.push(`<span class="error">✗ ${endpoint}</span> - Error: ${error.message}`);
+                    }
+                }
+
+                resultDiv.innerHTML = results.join('<br>');
+            }
+
+            async function testChatbot() {
+                const resultDiv = document.getElementById('chatbot-result');
+                resultDiv.innerHTML = '<span class="loading">Testing chatbot...</span>';
+
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/api/chatbot/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            message: 'Hello! How can you help me with my studies?'
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        resultDiv.innerHTML = `<span class="success">✓ Chatbot response:</span><br>"${data.response}"`;
+                    } else {
+                        resultDiv.innerHTML = '<span class="error">✗ Chatbot failed: ' + response.status + '</span>';
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = '<span class="error">✗ Chatbot error: ' + error.message + '</span>';
+                }
+            }
+
+            async function testTaskManagement() {
+                const resultDiv = document.getElementById('task-result');
+                resultDiv.innerHTML = '<span class="loading">Testing task management...</span>';
+
+                try {
+                    // Test creating a task
+                    const createResponse = await fetch('http://127.0.0.1:8000/api/tasks/create/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            title: 'Test Task from Frontend',
+                            category: 'Study',
+                            description: 'This is a test task created via API'
+                        })
+                    });
+
+                    if (createResponse.ok) {
+                        const taskData = await createResponse.json();
+                        resultDiv.innerHTML = `<span class="success">✓ Task created successfully!</span><br>ID: ${taskData.task.id}, Title: ${taskData.task.title}`;
+
+                        // Test toggling the task
+                        setTimeout(async () => {
+                            try {
+                                const toggleResponse = await fetch(`http://127.0.0.1:8000/api/tasks/toggle/${taskData.task.id}/`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    credentials: 'include'
+                                });
+
+                                if (toggleResponse.ok) {
+                                    const toggleData = await toggleResponse.json();
+                                    resultDiv.innerHTML += `<br><span class="success">✓ Task toggled! XP gained: ${toggleData.xp_gained || 0}</span>`;
+                                }
+                            } catch (error) {
+                                resultDiv.innerHTML += `<br><span class="error">✗ Toggle error: ${error.message}</span>`;
+                            }
+                        }, 1000);
+
+                    } else {
+                        resultDiv.innerHTML = '<span class="error">✗ Task creation failed: ' + createResponse.status + '</span>';
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = '<span class="error">✗ Task management error: ' + error.message + '</span>';
+                }
+            }
+
+            // Auto-test on page load
+            window.onload = function () {
+                testLogin();
+                setTimeout(() => {
+                    testAllAPIs();
+                }, 1000);
+            };
+        </script>
+    </body>
+
+</html>

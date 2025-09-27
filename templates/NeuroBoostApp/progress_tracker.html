@@ -6,7 +6,7 @@
 <div class="bg-slate-800 rounded-xl shadow-lg p-6 mb-6">
     <h1 class="text-2xl font-bold text-white mb-4">Your Progress Tracker</h1>
     <p class="text-slate-300 mb-6">Track your productivity metrics and growth over time.</p>
-    
+
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <!-- Task Completion Card -->
         <div class="bg-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
@@ -14,14 +14,14 @@
             <div class="text-3xl font-bold text-emerald-400 mb-1" id="task-completion-rate">0%</div>
             <p class="text-slate-400 text-sm">of all tasks completed</p>
         </div>
-        
+
         <!-- Study Time Card -->
         <div class="bg-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
             <h3 class="text-lg font-medium text-white mb-2">Total Study Time</h3>
             <div class="text-3xl font-bold text-blue-400 mb-1" id="total-study-time">0h</div>
             <p class="text-slate-400 text-sm">logged in focus sessions</p>
         </div>
-        
+
         <!-- XP Growth Card -->
         <div class="bg-slate-700 rounded-lg p-4 flex flex-col items-center justify-center">
             <h3 class="text-lg font-medium text-white mb-2">XP Growth</h3>
@@ -39,7 +39,7 @@
             <canvas id="taskCategoryChart"></canvas>
         </div>
     </div>
-    
+
     <!-- Focus Time Chart -->
     <div class="bg-slate-800 rounded-xl shadow-lg p-6">
         <h2 class="text-xl font-bold text-white mb-4">Focus Time (Last 7 Days)</h2>
@@ -59,28 +59,32 @@
 
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Fetch progress data from API
         fetch('/api/progress/')
-            .then(response => response.json())
+            .then(response => {
+                console.log('Progress API response status:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('Progress API data:', data);
                 // Update summary cards
                 document.getElementById('task-completion-rate').textContent = `${Math.round(data.completion_rate)}%`;
                 document.getElementById('total-study-time').textContent = `${Math.floor(data.total_focus_minutes / 60)}h ${data.total_focus_minutes % 60}m`;
                 document.getElementById('xp-growth').textContent = `${data.xp_last_week} XP`;
-                
+
                 // Create Task Category Chart (Pie Chart)
                 const taskCategoryCtx = document.getElementById('taskCategoryChart').getContext('2d');
-                
+
                 // Extract category data
                 const categories = [];
                 const completionRates = [];
-                
-                for (const category in data.category_stats) {
-                    categories.push(category);
-                    completionRates.push(data.category_stats[category].completion_rate);
-                }
-                
+
+                data.category_stats.forEach(category => {
+                    categories.push(category.category);
+                    completionRates.push(category.completion_rate);
+                });
+
                 const taskCategoryChart = new Chart(taskCategoryCtx, {
                     type: 'pie',
                     data: {
@@ -110,11 +114,10 @@
                             },
                             tooltip: {
                                 callbacks: {
-                                    label: function(context) {
-                                        const category = categories[context.dataIndex];
-                                        const categoryData = data.category_stats[category];
+                                    label: function (context) {
+                                        const categoryData = data.category_stats[context.dataIndex];
                                         return [
-                                            `${category}: ${categoryData.total} tasks`,
+                                            `${categoryData.category}: ${categoryData.total} tasks`,
                                             `Completed: ${categoryData.completed} (${Math.round(categoryData.completion_rate)}%)`
                                         ];
                                     }
@@ -123,7 +126,7 @@
                         }
                     }
                 });
-                
+
                 // Create Focus Time Chart (Bar Chart)
                 const focusTimeCtx = document.getElementById('focusTimeChart').getContext('2d');
                 const focusTimeChart = new Chart(focusTimeCtx, {
@@ -167,7 +170,7 @@
                         }
                     }
                 });
-                
+
                 // Create XP Growth Chart (Line Chart)
                 const xpGrowthCtx = document.getElementById('xpGrowthChart').getContext('2d');
                 const xpGrowthChart = new Chart(xpGrowthCtx, {
